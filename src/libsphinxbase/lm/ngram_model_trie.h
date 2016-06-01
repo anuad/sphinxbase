@@ -1,6 +1,6 @@
 /* -*- c-basic-offset: 4; indent-tabs-mode: nil -*- */
 /* ====================================================================
- * Copyright (c) 1999-2007 Carnegie Mellon University.  All rights
+ * Copyright (c) 2015 Carnegie Mellon University.  All rights
  * reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -34,53 +34,49 @@
  * ====================================================================
  *
  */
-/*
- * \file ngram_model_arpa.h ARPABO text format for N-Gram models
- *
- * Author: David Huggins-Daines <dhuggins@cs.cmu.edu>
- */
+#ifndef __NGRAM_MODEL_TRIE_H__
+#define __NGRAM_MODEL_TRIE_H__
 
-#ifndef __NGRAM_MODEL_ARPA_H__
-#define __NGRAM_MODEL_ARPA_H__
+#include <sphinxbase/prim_type.h>
+#include <sphinxbase/logmath.h>
 
 #include "ngram_model_internal.h"
-#include "lm3g_model.h"
+#include "lm_trie.h"
 
-/**
- * Bigram structure.
- */
-struct bigram_s {
-    uint32 wid;	/**< Index of unigram entry for this.  (NOT dictionary id.) */
-    uint16 prob2;	/**< Index into array of actual bigram probs */
-    uint16 bo_wt2;	/**< Index into array of actual bigram backoff wts */
-    uint16 trigrams;	/**< Index of 1st entry in lm_t.trigrams[],
-			     RELATIVE TO its segment base (see above) */
-};
-
-/**
- * Trigram structure.
- *
- * As with bigrams, trigram prob info kept in a separate table for conserving
- * memory space.
- */
-struct trigram_s {
-    uint32 wid;	  /**< Index of unigram entry for this.  (NOT dictionary id.) */
-    uint16 prob3; /**< Index into array of actual trigram probs */
-};
-
-
-/**
- * Subclass of ngram_model for ARPA file reading.
- */
-typedef struct ngram_model_arpa_s {
+typedef struct ngram_model_trie_s {
     ngram_model_t base;  /**< Base ngram_model_t structure */
-    lm3g_model_t lm3g;  /**< Shared lm3g structure */
+    lm_trie_t *trie;     /**< Trie structure that stores ngram relations and weights */
+} ngram_model_trie_t;
 
-    /* Arrays of unique bigram probs and bo-wts, and trigram probs
-     * (these are temporary, actually) */
-    sorted_list_t sorted_prob2;
-    sorted_list_t sorted_bo_wt2;
-    sorted_list_t sorted_prob3;
-} ngram_model_arpa_t;
+/**
+ * Read N-Gram model from and ARPABO text file and arrange it in trie structure
+ */
+ngram_model_t *ngram_model_trie_read_arpa(cmd_ln_t * config,
+                                          const char *path,
+                                          logmath_t * lmath);
 
-#endif /* __NGRAM_MODEL_ARPA_H__ */
+/**
+ * Write N-Gram model stored in trie structure in ARPABO format
+ */
+int ngram_model_trie_write_arpa(ngram_model_t * base, const char *path);
+
+/**
+ * Read N-Gram model from the binary file and arrange it in a trie structure
+ */
+ngram_model_t *ngram_model_trie_read_bin(cmd_ln_t * config,
+                                         const char *path,
+                                         logmath_t * lmath);
+
+/**
+ * Write trie to binary file
+ */
+int ngram_model_trie_write_bin(ngram_model_t * model, const char *path);
+
+/**
+ * Read N-Gram model from DMP file and arrange it in trie structure
+ */
+ngram_model_t *ngram_model_trie_read_dmp(cmd_ln_t * config,
+                                         const char *file_name,
+                                         logmath_t * lmath);
+
+#endif                          /* __NGRAM_MODEL_TRIE_H__ */

@@ -53,6 +53,9 @@ negative error code."
 #if SWIGJAVA
 %module SphinxBase
 %rename("%(lowercamelcase)s", notregexmatch$name="^[A-Z]") "";
+#elif SWIGJAVASCRIPT
+%module SphinxBase
+%rename("%(lowercamelcase)s", notregexmatch$name="^[A-Z]") "";
 #else
 %module(docstring=DOCSTRING) sphinxbase
 #endif
@@ -69,16 +72,19 @@ negative error code."
 #endif
 
 %begin %{
+
+#ifndef __cplusplus
+typedef int bool;
+#define true 1
+#define false 0
+#endif
+
 #include <sphinxbase/cmd_ln.h>
 #include <sphinxbase/err.h>
 #include <sphinxbase/fe.h>
 #include <sphinxbase/feat.h>
 #include <sphinxbase/jsgf.h>
 #include <sphinxbase/ngram_model.h>
-
-typedef int bool;
-#define false 0
-#define true 1
 
 typedef cmd_ln_t Config;
 typedef jsgf_t Jsgf;
@@ -104,8 +110,8 @@ typedef struct {} LogMath;
 sb_iterator(NGramModelSet, ngram_model_set_iter, NGramModel);
 sb_iterator(Jsgf, jsgf_rule_iter, JsgfRule)
 
-sb_iterable(NGramModelSet, ngram_model_set_iter, NGramModel)
-sb_iterable(Jsgf, jsgf_rule_iter, JsgfRule)
+sb_iterable(NGramModelSet, NGramModelSet, ngram_model_set_iter, ngram_model_set_iter, NGramModel)
+sb_iterable(Jsgf, Jsgf, jsgf_rule_iter, jsgf_rule_iter, JsgfRule)
 
 typedef struct {} NGramModelSet;
 typedef struct {} Jsgf;

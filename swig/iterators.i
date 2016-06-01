@@ -1,22 +1,11 @@
 // Macro to construct iterable objects.
 %define sb_iterator(TYPE, PREFIX, VALUE_TYPE)
 
+#if !SWIGRUBY
+
 #if SWIGJAVA
 %typemap(javainterfaces) TYPE##Iterator "java.util.Iterator<"#VALUE_TYPE">"
-%typemap(javabody) TYPE##Iterator %{
-
-  private long swigCPtr;
-  protected boolean swigCMemOwn;
-
-  public $javaclassname(long cPtr, boolean cMemoryOwn) {
-    swigCMemOwn = cMemoryOwn;
-    swigCPtr = cPtr;
-  }
-
-  public static long getCPtr($javaclassname obj) {
-    return (obj == null) ? 0 : obj.swigCPtr;
-  }
-
+%typemap(javacode) TYPE##Iterator %{
   @Override
   public void remove() {
     throw new UnsupportedOperationException();
@@ -25,7 +14,6 @@
 #endif
 
 // Basic types
-
 %inline %{
 typedef struct {
   PREFIX##_t *ptr;
@@ -64,7 +52,7 @@ typedef struct {
 
 %extend TYPE##Iterator {
   TYPE##Iterator(PREFIX##_t *ptr) {
-    TYPE##Iterator *iter = ckd_malloc(sizeof *iter);
+    TYPE##Iterator *iter = (TYPE##Iterator *)ckd_malloc(sizeof *iter);
     iter->ptr = ptr;
     return iter;
   }
@@ -89,9 +77,18 @@ typedef struct {
   bool hasNext() {
     return $self->ptr != NULL;
   }
-#endif
-#if SWIGPYTHON
+#elif SWIGJAVASCRIPT
+  %newobject next;
+  VALUE_TYPE * next() {
+    if ($self->ptr) {
+      VALUE_TYPE *value = ##VALUE_TYPE##_fromIter($self->ptr);
+      $self->ptr = ##PREFIX##_next($self->ptr);
+      return value;
+    }
 
+    return NULL;
+  }
+#elif SWIGPYTHON
   // Python2
   %newobject next;
   VALUE_TYPE * next() {
@@ -114,53 +111,61 @@ typedef struct {
     return NULL;
   }
 #endif
-
 }
+
+#endif // SWIGRUBY
 
 %enddef
 
 
-%define sb_iterable(TYPE, PREFIX, VALUE_TYPE)
+%define sb_iterable(TYPE, ITER_TYPE, PREFIX, INIT_PREFIX, VALUE_TYPE)
 
 // Methods to retrieve the iterator from the container
 
-%extend TYPE {
-  // Also used in Java, but underscores are automatically removed
-  TYPE##Iterator * __iter__() {
-    return new_##TYPE##Iterator(PREFIX##($self));
-  }
-}
-
-sb_iterable_java(TYPE, VALUE_TYPE)
-
-%enddef
-
-%define sb_iterable_java(TYPE, VALUE_TYPE)
-
-// Same but without __iter__ which can vary from class to class
-
 #if SWIGJAVA
 %typemap(javainterfaces) TYPE "Iterable<"#VALUE_TYPE">"
-%typemap(javabody) TYPE %{
-
-  private long swigCPtr;
-  protected boolean swigCMemOwn;
-
-  public $javaclassname(long cPtr, boolean cMemoryOwn) {
-    swigCMemOwn = cMemoryOwn;
-    swigCPtr = cPtr;
-  }
-
-  public static long getCPtr($javaclassname obj) {
-    return (obj == null) ? 0 : obj.swigCPtr;
-  }
-
-  @Override
-  public java.util.Iterator<VALUE_TYPE> iterator () {
-    return iter();
-  }
-%}
-%javamethodmodifiers TYPE::__iter__ "private";
 #endif
+
+%extend TYPE {
+  
+#if SWIGRUBY  
+  void each() {
+    ##PREFIX##_t *iter = INIT_PREFIX##($self);
+    while (iter) {
+      VALUE_TYPE *value = ##VALUE_TYPE##_fromIter(iter);
+      rb_yield(SWIG_NewPointerObj(SWIG_as_voidptr(value), SWIGTYPE_p_##VALUE_TYPE##, 0 |  0 ));
+      iter = PREFIX##_next(iter);
+    }
+    return;
+  }
+
+  void each(int count) {
+    ##PREFIX##_t *iter = INIT_PREFIX##($self);
+    int cnt = 0;
+    while (iter && cnt < count) {
+      VALUE_TYPE *value = ##VALUE_TYPE##_fromIter(iter);
+      rb_yield(SWIG_NewPointerObj(SWIG_as_voidptr(value), SWIGTYPE_p_##VALUE_TYPE##, 0 |  0 ));
+      iter = PREFIX##_next(iter);
+      cnt++;
+    }
+    if (iter)
+	PREFIX##_free(iter);
+    return;
+  }
+
+#elif SWIGJAVA
+  %newobject iterator;
+  ITER_TYPE##Iterator * iterator() {
+    return new_##ITER_TYPE##Iterator(INIT_PREFIX##($self));
+  }
+
+#else  /* PYTHON, JS */
+  %newobject __iter__;
+  ITER_TYPE##Iterator * __iter__() {
+    return new_##ITER_TYPE##Iterator(INIT_PREFIX##($self));
+  }  
+#endif 
+
+}
 
 %enddef
